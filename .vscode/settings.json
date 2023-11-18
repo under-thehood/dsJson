@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "cstring.h": "c",
+        "array": "c",
+        "string_view": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "span": "c"
+    }
+}
