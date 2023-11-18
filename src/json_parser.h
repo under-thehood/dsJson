@@ -1,3 +1,6 @@
+#ifndef _DSJSON_JSON_PARSER_H_
+#define _DSJSON_JSON_PARSER_H_
+
 #include "./cstring.h"
 
 typedef enum
@@ -46,6 +49,8 @@ JsonParser json_parser_create(String str)
     JsonParser parser;
 
     parser.string = str;
+
+    parser.tokValue = (String){.data = NULL, .size = 0};
 
     parser.index = 0;
 
@@ -360,3 +365,5 @@ bool json_parse_value(JsonParser *parser)
     }
     return status;
 }
+
+#endif

@@ -1,4 +1,4 @@
-#include "./draft.h"
+#include "src/json_parser.h"
 #include <stdio.h>
 #include <assert.h>
 
@@ -32,11 +32,6 @@ int main(int argc, char const *argv[])
 
     fileContent[fileSize + 1] = '\0';
 
-    // JsonParser parser = json_parser_create(string_create("{"
-    //                                                      "\"name\": \"saugat kandel\","
-    //                                                      "\"roll\": 74,"
-    //                                                      "\"address\": \"Gaindakot\""
-    //                                                      "}"));
     JsonParser parser = json_parser_create(string_create(fileContent));
 
     json_parser_next_token(&parser);

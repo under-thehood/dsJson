@@ -1,4 +1,5 @@
-
+#ifndef _DSJSON_CSTRING_H_
+#define _DSJSON_CSTRING_H_
 
 #include <stddef.h>
 #include <stdio.h>
@@ -33,7 +34,6 @@ double string_to_double(String *string)
 void string_display(String *str)
 {
     printf("=======================\n");
-    // printf("Length:%d\n");
     for (size_t i = 0; i < str->size; i++)
     {
         putchar(str->data[i]);
@@ -51,3 +51,5 @@ bool string_compare_str(String *str1, const char *str2)
         return false;
     return true;
 }
+
+#endif
