@@ -2,6 +2,7 @@
 #define _DSJSON_JSON_PARSER_H_
 
 #include "./cstring.h"
+#include "./json_element.h"
 
 typedef enum
 {
@@ -24,7 +25,10 @@ typedef enum
     JSON_TOK_TRUE,
     JSON_TOK_FALSE,
     JSON_TOK_NULL,
+
+    // number
     JSON_TOK_NUMBER,
+    JSON_TOK_BROKEN_NUMBER,
     JSON_TOK_MINUS,
     JSON_TOK_PLUS,
     JSON_TOK_DOT,
@@ -42,8 +46,6 @@ typedef struct
     JSONTok currentTok;
 } JsonParser;
 
-bool json_parse_value(JsonParser *parser);
-
 JsonParser json_parser_create(String str)
 {
     JsonParser parser;
@@ -59,7 +61,7 @@ JsonParser json_parser_create(String str)
 
 bool is_digit(char character)
 {
-    return (character >= '0' && character <= '9');
+    return (character >= '0' && character <= '9') || character == '-';
 }
 
 bool is_alpha(char character)
@@ -75,13 +77,18 @@ JSONTok json_parse_string(JsonParser *parser)
 {
     JSONTok stringStatus = JSON_TOK_STRING;
 
-    parser->index++;
+    // parser->index++;
+
+    size_t tok_start = parser->index;
 
     for (; parser->index < parser->string.size; parser->index++)
     {
         char currData = parser->string.data[parser->index];
         if (currData == '\"')
+        {
+            parser->tokValue = (String){.data = parser->string.data + tok_start, .size = parser->index - tok_start};
             return stringStatus;
+        }
 
         if (currData == '\\')
         {
@@ -158,14 +165,46 @@ void json_parser_next_token(JsonParser *parser)
         // parse number
         if (is_digit(currentCharacter))
         {
+
             size_t tok_startIndex = parser->index;
+            bool isValidNumber = false;
+            JSONTok tokType = JSON_TOK_NUMBER;
+            currentCharacter = parser->string.data[++parser->index];
+
             while (currentCharacter >= '0' && currentCharacter <= '9')
             {
+                isValidNumber = true;
                 currentCharacter = parser->string.data[++parser->index];
             }
 
+            if (isValidNumber)
+            {
+                if (currentCharacter == '.') // Parsing the fractional part
+                {
+                    printf("Parsing decomal\n");
+                    isValidNumber = false;
+                    currentCharacter = parser->string.data[++parser->index];
+                    while (currentCharacter >= '0' && currentCharacter <= '9')
+                    {
+                        isValidNumber = true;
+                        currentCharacter = parser->string.data[++parser->index];
+                    }
+                    if (!isValidNumber)
+                        tokType = JSON_TOK_BROKEN_NUMBER;
+                }
+                // TODO: Handle the exponent
+                //  if (currentCharacter == 'e' || currentCharacter == 'E')
+                //  {
+
+                // }
+            }
+            else
+            {
+                tokType = JSON_TOK_NUMBER;
+            }
+
             parser->tokValue = (String){.data = parser->string.data + tok_startIndex, .size = parser->index - tok_startIndex};
-            parser->currentTok = JSON_TOK_NUMBER;
+            parser->currentTok = tokType;
             return;
         }
 
@@ -183,15 +222,6 @@ void json_parser_next_token(JsonParser *parser)
             break;
         case ']':
             parser->currentTok = JSON_TOK_SQUARE_BOX_CLOSE;
-            break;
-        case '-':
-            parser->currentTok = JSON_TOK_MINUS;
-            break;
-        case '+':
-            parser->currentTok = JSON_TOK_PLUS;
-            break;
-        case '.':
-            parser->currentTok = JSON_TOK_DOT;
             break;
         case ':':
             parser->currentTok = JSON_TOK_COLON;
@@ -219,14 +249,22 @@ bool json_parser_expect(JsonParser *parser, JSONTok tok)
     return parser->currentTok == tok;
 }
 
-bool json_parse_object(JsonParser *parser)
+JsonElement json_parse_value(JsonParser *parser);
+
+JsonElement json_parse_object(JsonParser *parser)
 {
     bool status = true;
+
+    JsonObject object;
+    String key;
+    JsonElement value;
+
+    json_object_init(&object, 25);
 
     json_parser_next_token(parser);
 
     if (json_parser_expect(parser, JSON_TOK_CURLY_OPEN))
-        return true;
+        return json_element_create_object(&object);
 
     while (parser->currentTok != JSON_TOK_CURLY_CLOSE)
     {
@@ -234,23 +272,29 @@ bool json_parse_object(JsonParser *parser)
         if (!json_parser_expect(parser, JSON_TOK_STRING))
         {
             printf("[ERROR] Expected the property\n");
-            status = false;
+            return json_element_create_error();
         }
+
+        key = parser->tokValue;
 
         json_parser_next_token(parser);
         if (!json_parser_expect(parser, JSON_TOK_COLON))
         {
 
             printf("[ERROR] Expected colon\n");
-            return false;
+            return json_element_create_error();
         }
 
         json_parser_next_token(parser);
 
-        if (!json_parse_value(parser))
+        value = json_parse_value(parser);
+
+        if (value.type == JSON_TYPE_ERROR)
         {
-            return false;
+            return value;
         }
+
+        json_object_add(&object, key, value);
 
         if (json_parser_expect(parser, JSON_TOK_COMMA))
             json_parser_next_token(parser);
@@ -261,22 +305,24 @@ bool json_parse_object(JsonParser *parser)
         if (json_parser_expect(parser, JSON_TOK_CURLY_CLOSE))
         {
             printf("[ERROR]  Expected property or handle trailing comma\n");
-            return false;
+            return json_element_create_error();
         }
     }
 
     if (!json_parser_expect(parser, JSON_TOK_CURLY_CLOSE))
     {
         printf("[ERROR]  Expected } or , \n");
-        status = false;
+        return json_element_create_error();
     }
-    return status;
+
+    return json_element_create_object(&object);
 }
 
-bool json_parse_array(JsonParser *parser)
+JsonElement json_parse_array(JsonParser *parser)
 {
-    bool status = true;
     bool firstProperty = true;
+    JsonArray array;
+    json_array_init(&array, 8);
 
     do
     {
@@ -286,84 +332,83 @@ bool json_parse_array(JsonParser *parser)
         {
             if (!firstProperty)
             {
-                printf("[ERROR] Expected the value\n");
-                return false;
+                printf("[ERROR] Expected the value handle trailing comma\n");
+                return json_element_create_error();
             }
             else
             {
-                return status;
+                return json_element_create_array(&array);
             }
         }
 
-        if (!json_parse_value(parser))
-            return false;
+        JsonElement value = json_parse_value(parser);
+        if (value.type == JSON_TYPE_ERROR)
+            return json_element_create_error();
+
+        firstProperty = false;
+        json_array_add_element(&array, value);
 
     } while (json_parser_expect(parser, JSON_TOK_COMMA));
 
     if (!json_parser_expect(parser, JSON_TOK_SQUARE_BOX_CLOSE))
     {
         printf("[ERROR] Incomplete Array\n");
-        status = false;
+        return json_element_create_error();
     }
-    return status;
+    return json_element_create_array(&array);
 }
 
-bool json_parse_number(JsonParser *parser)
+JsonElement json_parse_number(JsonParser *parser)
 {
-    if (json_parser_expect(parser, JSON_TOK_MINUS))
-        json_parser_next_token(parser);
 
-    if (!json_parser_expect(parser, JSON_TOK_NUMBER))
-        return false;
+    double num = string_to_double(&parser->tokValue);
 
-    json_parser_next_token(parser);
-    if (!json_parser_expect(parser, JSON_TOK_DOT))
-        return true;
-
-    json_parser_next_token(parser);
-    if (!json_parser_expect(parser, JSON_TOK_NUMBER))
-        return false;
-    return true;
+    return json_element_create_number(num);
 }
 
-bool json_parse_value(JsonParser *parser)
+JsonElement json_parse_value(JsonParser *parser)
 {
 
-    bool status;
+    JsonElement result;
     switch (parser->currentTok)
     {
     case JSON_TOK_STRING:
-        status = true;
+        result = json_element_create_string(&parser->tokValue);
         json_parser_next_token(parser);
         break;
-
     case JSON_TOK_CURLY_OPEN:
-        status = json_parse_object(parser);
+        result = json_parse_object(parser);
         json_parser_next_token(parser);
         break;
 
     case JSON_TOK_SQUARE_BOX_OPEN:
-        status = json_parse_array(parser);
+        result = json_parse_array(parser);
         json_parser_next_token(parser);
         break;
 
     case JSON_TOK_FALSE:
-    case JSON_TOK_TRUE:
-    case JSON_TOK_NULL:
-        status = true;
+        result = json_element_create_boolean(false);
         json_parser_next_token(parser);
         break;
-    case JSON_TOK_MINUS:
+    case JSON_TOK_TRUE:
+        result = json_element_create_boolean(true);
+        json_parser_next_token(parser);
+        break;
+    case JSON_TOK_NULL:
+        result = json_element_create_null();
+        json_parser_next_token(parser);
+        break;
     case JSON_TOK_NUMBER:
-        status = json_parse_number(parser);
+        result = json_parse_number(parser);
+        json_parser_next_token(parser);
         break;
     default:
         printf("[ERROR] Expected value\n");
-        status = false;
+        result = json_element_create_error();
         json_parser_next_token(parser);
         break;
     }
-    return status;
+    return result;
 }
 
 #endif

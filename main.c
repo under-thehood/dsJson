@@ -1,4 +1,5 @@
 #include "src/json_parser.h"
+#include "src/json_element.h"
 #include <stdio.h>
 #include <assert.h>
 
@@ -36,7 +37,9 @@ int main(int argc, char const *argv[])
 
     json_parser_next_token(&parser);
 
-    json_parse_value(&parser);
+    JsonElement element = json_parse_value(&parser);
+
+    json_element_display(&element);
 
     return 0;
 }

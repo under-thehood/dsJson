@@ -1,75 +1,9 @@
 {
-    "name": "saugat kandel",
-    "roll": [
+    "name": "John Wick",
+    "Address": "London",
+    "fun": [
+        null,
         true,
-        {
-            "name": "saugat kandel",
-            "roll": [
-                true,
-                {
-                    "name": "saugat kandel",
-                    "roll": [
-                        true,
-                        {
-                            "name": "saugat kandel",
-                            "roll": [
-                                true,
-                                {
-                                    "name": "saugat kandel",
-                                    "roll": [
-                                        true,
-                                        {
-                                            "name": "saugat kandel",
-                                            "roll": [
-                                                true,
-                                                {}
-                                            ],
-                                            "address": "Gaindakot"
-                                        },
-                                        {
-                                            "name": "saugat kandel",
-                                            "roll": [
-                                                true,
-                                                {}
-                                            ],
-                                            "address": "Gaindakot"
-                                        },
-                                        {
-                                            "name": "saugat kandel",
-                                            "roll": [
-                                                true,
-                                                {}
-                                            ],
-                                            "address": "Gaindakot"
-                                        },
-                                        {
-                                            "name": "saugat kandel",
-                                            "roll": [
-                                                true,
-                                                {}
-                                            ],
-                                            "address": "Gaindakot"
-                                        },
-                                        {
-                                            "name": "saugat kandel",
-                                            "roll": [
-                                                true,
-                                                {}
-                                            ],
-                                            "address": "Gaindakot"
-                                        }
-                                    ],
-                                    "address": "Gaindakot"
-                                }
-                            ],
-                            "address": "Gaindakot"
-                        }
-                    ],
-                    "address": "Gaindakot"
-                }
-            ],
-            "address": "Gaindakot"
-        }
-    ],
-    "address": "Gaindakot"
+        false
+    ]
 }
